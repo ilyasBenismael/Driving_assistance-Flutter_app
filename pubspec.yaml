@@ -1,0 +1,35 @@
+name: samaw
+
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  geolocator: ^11.1.0
+  camera: ^0.10.5+9
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+  image: ^4.2.0
+  http: ^1.1.0
+  http_parser: ^4.0.2
+  web_socket_channel: ^2.4.0
+  audioplayers: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  assets:
+    - assets/images/tire.png
+    - assets/images/t1.png
+    - assets/images/t2.png
+    - assets/audios/pedestrian.mp3
+    - assets/audios/vehicle.mp3
+  uses-material-design: true
