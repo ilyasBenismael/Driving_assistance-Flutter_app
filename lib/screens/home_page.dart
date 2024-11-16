@@ -23,6 +23,7 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   //////////////////////// Vars /////////////////////
+  final TextEditingController _urlController = TextEditingController();
 
   late AnimationController _rotationController;
   late double _speed = 0;
@@ -42,6 +43,7 @@ class HomePageState extends State<HomePage>
 
   //DateTime lastAlertDate = DateTime.now();
   late Future<int> cameraAndLocationState;
+  String serverUrl = "";
   Uint8List? myImage;
   Map<int, Uint8List?> picsList = {};
   late CameraService _cameraService;
@@ -76,6 +78,7 @@ class HomePageState extends State<HomePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0E0E0E),
       appBar: AppBar(
         title: const Text(
           'Safe Drive',
@@ -99,7 +102,7 @@ class HomePageState extends State<HomePage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height : 10),
+                      const SizedBox(height: 10),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.start,
@@ -129,7 +132,7 @@ class HomePageState extends State<HomePage>
                                       fontSize: 23, color: Colors.white54))),
                           const Padding(
                             padding: EdgeInsets.fromLTRB(2, 0, 0, 4),
-                            child: Text('Km/h',
+                            child: Text('KM/h',
                                 style: TextStyle(
                                     fontSize: 15, color: Colors.white54)),
                           ),
@@ -163,63 +166,84 @@ class HomePageState extends State<HomePage>
                     ],
                   ),
                   const SizedBox(width: 20),
-                  Container(
-                    //color: Colors.red,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        Container(
-                          width: 130,
-                          height: 130,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white70,
-                          ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Container(
+                        width: 130,
+                        height: 130,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white70,
                         ),
-                        const SizedBox(height: 17),
-                        Container(
-                          height: 20,
-                          width: 280,
-                          alignment: Alignment.center,
-                          // centers text horizontally
-                          child: Text('',
-                              textAlign: TextAlign.center,
-                              // ensures text is centered within the text box
-                              style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11)),
-                        ),
-                        Container(height: 14, color: Colors.red),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 17),
+                      Container(
+                        height: 20,
+                        width: 280,
+                        alignment: Alignment.center,
+                        // centers text horizontally
+                        child: const Text('',
+                            textAlign: TextAlign.center,
+                            // ensures text is centered within the text box
+                            style: TextStyle(
+                                color: Colors.white54,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11)),
+                      ),
+                      Container(height: 14, color: Colors.red),
+                    ],
                   ),
                 ],
               ),
             );
           } else {
-            return Container(
-              color: const Color(0xFF021E30),
-              child: Center(
+            return SafeArea(
+              child: SingleChildScrollView(
+                child: Center(
                   child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    Text(
-                      errorMsg,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 15),
-                    ElevatedButton(
-                      onPressed: retry,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24.0, vertical: 12.0),
-                        textStyle: const TextStyle(fontSize: 16),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 100),
+                      SizedBox(
+                        width: 350,
+                        child: TextField(
+                          controller: _urlController,
+                          style: const TextStyle(color: Colors.white),
+                          // Text color inside the TextField
+                          decoration: const InputDecoration(
+                            labelText: 'Enter server Url',
+                            labelStyle: TextStyle(color: Colors.grey),
+                            // Light grey label text
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
                       ),
-                      child: const Text('Retry'),
-                    )
-                  ])),
+                      const SizedBox(height: 15),
+                      // Button with white text
+                      ElevatedButton(
+                        onPressed: start,
+                        style: ElevatedButton.styleFrom(
+                          textStyle: const TextStyle(
+                              fontSize: 16, color: Colors.white),
+                        ),
+                        child: const Text('Start'),
+                      ),
+                      const SizedBox(height: 25),
+                      // Error message in white text
+                      Container(
+                        height: 200,
+                        child: Text(
+                          errorMsg,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             );
           }
         },
@@ -233,6 +257,17 @@ class HomePageState extends State<HomePage>
 
   Future<int> setUpEverything() async {
     try {
+      //______________________________________________________________________
+      //setting up the ch annel, using IOWebSocketChannel it's designed for non-browser apps
+      serverUrl = _urlController.text.toString().trim();
+      if (serverUrl.isEmpty) {
+        errorMsg = "You need to enter the server url";
+        return -5;
+      }
+      Uri srvrUrl = Uri.parse(serverUrl);
+      myChannel = IOWebSocketChannel.connect(srvrUrl);
+      //______________________________________________________________________
+
       //________________________________________________________________________
       //checking locations and setting up speed updates every 2sec
       int speedStatus = await _locationService.setUpSpeed((speed) {
@@ -254,11 +289,7 @@ class HomePageState extends State<HomePage>
       }
       //________________________________________________________________________
 
-      //setting up the ch annel, using IOWebSocketChannel it's designed for non-browser apps
-      //________________________________________________________________________
-      myChannel =
-          IOWebSocketChannel.connect('ws://d3ed-98-84-99-74.ngrok-free.app/ws/predict');
-      //________________________________________________________________________
+
 
       // Set up the AnimationController to rotate 3 times per second
       //________________________________________________________________________
@@ -297,6 +328,7 @@ class HomePageState extends State<HomePage>
     //if error or disconnection we show the msg
     myChannel.stream.listen(
       (message) {
+        print("ilyaas - just received : $message");
         _handlingResponse(message);
       },
       onError: (error) {
@@ -532,17 +564,14 @@ class HomePageState extends State<HomePage>
     }
   }
 
-
   ////////////////////////////////////// Start sending //////////////////////////////////////////
 
-
-   startSending() async {
-    while(true){
-        await Future.delayed(const Duration(milliseconds: 70));
-       _cameraService.captureImage();
+  startSending() async {
+    while (true) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+      _cameraService.captureImage();
     }
   }
-
 
   ////////////////////////////////////// UPDATE ROTATION SPEED //////////////////////////////////////////////
   void _updateRotCntrl() {
@@ -555,7 +584,7 @@ class HomePageState extends State<HomePage>
 
   ////////////////////////////////////////////// RETRY //////////////////////////////////////////////////
 
-  void retry() {
+  void start() {
     cameraAndLocationState = setUpEverything();
     setState(() {});
   }
@@ -570,5 +599,4 @@ class HomePageState extends State<HomePage>
     errorMsg = "";
   }
 }
-
 /////////////////////////////////////////////// end of class /////////////////////////////////////////////////////////////
