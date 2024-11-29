@@ -20,26 +20,37 @@ class HomePage extends StatefulWidget {
 
 //////////////////////////////////////// Our main class ////////////////////////////////////////////////
 
-class HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin {
+class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   //////////////////////// Vars /////////////////////
   final TextEditingController _urlController = TextEditingController();
+  final TextEditingController _fpsController = TextEditingController();
 
   late AnimationController _rotationController;
+  late AnimationController _visibilityController;
+  late AnimationController _sizeController;
+  late AnimationController _typingController;
+  late Animation<int> _textAnimation;
+  late Animation<double> _sizeAnimation;
+  late int frameInterval;
+  bool _isTextVisible = false;
+  late IconData alertIcon = Icons.directions_car;
   late double _speed = 0;
+  String objctText = "";
+  DateTime thisAlrtDate = DateTime(2023, 11, 22, 14, 30, 45);
+  late DateTime lastAlrtDate;
   int rotationSpeed = 5000;
 
   Map<String, String> msgs = {
     "vehicle": "Maintain a safe distance from vehicle ahead!",
-    "pedestrian": "Slow down! pedestrian ahead!"
+    "pedestrian": "Pedestrian ahead, Slow down!"
   };
 
   ////distance ranges :
-  static final List<double> midSign = [0.15, 0.85]; // middle for signs
-  static final List<double> mid35 = [0.325, 0.675]; // Middle 35%
-  static final List<double> mid20 = [0.4, 0.6]; // Middle 20%
-  static final List<double> mid15 = [0.425, 0.575]; // Middle 15%
-  static final List<double> mid10 = [0.45, 0.55]; // Middle 10%
+  static final List<double> midSign = [0.15, 0.85];
+  static final List<double> mid35 = [0.325, 0.675];
+  static final List<double> mid20 = [0.4, 0.6];
+  static final List<double> mid15 = [0.425, 0.575];
+  static final List<double> mid10 = [0.45, 0.55];
 
   //DateTime lastAlertDate = DateTime.now();
   late Future<int> cameraAndLocationState;
@@ -49,10 +60,11 @@ class HomePageState extends State<HomePage>
   late CameraService _cameraService;
   late LocationService _locationService;
   String errorMsg = '';
-  String alertMsg = '';
+  String alertMsg = "Maintain a safe distance from vehicle ahead!";
   int recNbr = 0;
   int sentNbr = 0;
   String stateMsg = "";
+  bool isConnected = false;
   static late IOWebSocketChannel myChannel;
   late SendPort resizePort;
 
@@ -62,7 +74,7 @@ class HomePageState extends State<HomePage>
     super.initState();
     _cameraService = CameraService(this);
     _locationService = LocationService(context);
-    //set up camera, if error return
+    setAllAnimations();
     cameraAndLocationState = setUpEverything();
   }
 
@@ -77,127 +89,239 @@ class HomePageState extends State<HomePage>
 ////////////////////////////////// Build /////////////////////////////////////////////
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
       backgroundColor: const Color(0xFF0E0E0E),
-      appBar: AppBar(
-        title: const Text(
-          'Safe Drive',
-          style: TextStyle(color: Colors.white70),
-        ),
-        backgroundColor: Colors.black,
-      ),
       body: FutureBuilder(
         future: cameraAndLocationState,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasData && snapshot.data == 1) {
-            return Container(
-              color: const Color(0xFF0E0E0E),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  const SizedBox(width: 35),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 10),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.start,
+            return Center(
+                child: SizedBox(
+                    //color: Colors.green,
+                    width: screenWidth * 0.75,
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(5, 0, 0, 5),
-                            child: AnimatedBuilder(
-                              animation: _rotationController,
-                              builder: (context, child) {
-                                return Transform.rotate(
-                                  angle:
-                                      _rotationController.value * 2.0 * math.pi,
-                                  child: Image.asset(
-                                    'assets/images/t1.png',
-                                    width: 30,
-                                    height: 30,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(_speed.toStringAsFixed(2),
-                                  style: const TextStyle(
-                                      fontSize: 23, color: Colors.white54))),
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(2, 0, 0, 4),
-                            child: Text('KM/h',
-                                style: TextStyle(
-                                    fontSize: 15, color: Colors.white54)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      Container(
-                        width: 420,
-                        height: 210,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(6),
-                          // Rounds the corners
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
-                            // Semi-transparent border
-                            width: 1,
-                          ),
-                        ),
-                        child: myImage != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(6),
-                                // Rounds the image corners
-                                child: Image.memory(
-                                  myImage!,
-                                  fit: BoxFit.cover,
+                          Stack(
+                            children: [
+                              SizedBox(
+                                width: screenWidth * 0.75,
+                                height: screenWidth * 0.75 * 0.5,
+                                child: myImage != null
+                                    ? Image.memory(
+                                        myImage!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Container(
+                                        color: Colors.black,
+                                      ),
+                              ),
+                              Positioned(
+                                top: 4,
+                                left: 4,
+                                child: Container(
+                                    decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.8),
+                                        borderRadius: const BorderRadius.all(
+                                            Radius.circular(2))),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(4.0),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 9,
+                                            height: 9,
+                                            child: AnimatedBuilder(
+                                              animation: _visibilityController,
+                                              builder: (context, child) {
+                                                return Visibility(
+                                                  visible: _visibilityController
+                                                          .value >
+                                                      0.5,
+                                                  child: child!,
+                                                );
+                                              },
+                                              child: Container(
+                                                width: 9,
+                                                height: 9,
+                                                decoration: BoxDecoration(
+                                                  color: isConnected
+                                                      ? Colors.green
+                                                      : Colors.red,
+                                                  // Green color
+                                                  shape: BoxShape
+                                                      .circle, // Circular shape
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 5),
+                                          // Text
+                                          Text(
+                                            isConnected
+                                                ? "Connected"
+                                                : "Disconnected",
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Colors
+                                                  .white70, // Customize color as needed
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )),
+                              ),
+
+                              ///////////////////////DETECTED OBJECTS
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 135,
+                                  height: 105,
+                                  color: Colors.black12.withOpacity(0.7),
+                                  child: Padding(
+                                      padding: const EdgeInsets.all(6.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text("Detected objects :",
+                                              style: TextStyle(
+                                                  color: Colors.white70,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12.5)),
+                                          Text(objctText,
+                                              style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontWeight: FontWeight.normal,
+                                                  fontSize: 10.5))
+                                        ],
+                                      )),
                                 ),
-                              )
-                            : Container(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 20),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      Container(
-                        width: 130,
-                        height: 130,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 17),
-                      Container(
-                        height: 20,
-                        width: 280,
-                        alignment: Alignment.center,
-                        // centers text horizontally
-                        child: const Text('',
-                            textAlign: TextAlign.center,
-                            // ensures text is centered within the text box
-                            style: TextStyle(
-                                color: Colors.white54,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11)),
-                      ),
-                      Container(height: 14, color: Colors.red),
-                    ],
-                  ),
-                ],
-              ),
-            );
+                              ),
+
+                              ///////////////////////////////AUDIO CIRCLE
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                child: AnimatedBuilder(
+                                  animation: _sizeAnimation,
+                                  builder: (context, child) {
+                                    return SizedBox(
+                                        width: 50,
+                                        height: 50,
+                                        child: Center(
+                                            child: GestureDetector(
+                                          onTap: () {
+                                            _startAlert("vehicle");
+                                          },
+                                          child: Container(
+                                              width: _sizeAnimation.value,
+                                              height: _sizeAnimation.value,
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    Colors.white.withOpacity(1),
+                                                // Green color
+                                                shape: BoxShape
+                                                    .circle, // Circular shape
+                                              )),
+                                        )));
+                                  },
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: const BorderRadius.all(
+                                          Radius.circular(1))),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(5),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      children: [
+                                        AnimatedBuilder(
+                                          animation: _rotationController,
+                                          builder: (context, child) {
+                                            return Transform.rotate(
+                                              angle: _rotationController.value *
+                                                  2.0 *
+                                                  math.pi,
+                                              child: Image.asset(
+                                                'assets/images/t1.png',
+                                                width: 20,
+                                                height: 20,
+                                                color: Colors.white70,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(_speed.toStringAsFixed(2),
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                color: Colors.white70)),
+                                        const Text('Km/h',
+                                            style: TextStyle(
+                                                fontSize: 15,
+                                                color: Colors.white70)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 4),
+                          ////////////////////////////THE ALERT LINE
+                          _isTextVisible
+                              ? SizedBox(
+                                  height: 30,
+                                  child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        const SizedBox(width: 6),
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                              0, 0, 0, 5),
+                                          child: Icon(
+                                            alertIcon,
+                                            size: 20,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        AnimatedBuilder(
+                                            animation: _textAnimation,
+                                            builder: (context, child) {
+                                              String displayedText =
+                                                  alertMsg.substring(
+                                                      0, _textAnimation.value);
+                                              return Text(displayedText,
+                                                  style: const TextStyle(
+                                                    fontSize: 16.5,
+                                                    color: Colors.white60,
+                                                    fontWeight: FontWeight.bold,
+                                                  ));
+                                            })
+                                      ]),
+                                )
+                              : Container(height: 30)
+                        ])));
           } else {
             return SafeArea(
               child: SingleChildScrollView(
@@ -207,19 +331,39 @@ class HomePageState extends State<HomePage>
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const SizedBox(height: 100),
-                      SizedBox(
-                        width: 350,
-                        child: TextField(
-                          controller: _urlController,
-                          style: const TextStyle(color: Colors.white),
-                          // Text color inside the TextField
-                          decoration: const InputDecoration(
-                            labelText: 'Enter server Url',
-                            labelStyle: TextStyle(color: Colors.grey),
-                            // Light grey label text
-                            border: OutlineInputBorder(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: screenWidth * 0.5,
+                            child: TextField(
+                              controller: _urlController,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: const InputDecoration(
+                                labelText: 'Server URL',
+                                labelStyle:
+                                    TextStyle(color: Colors.grey, fontSize: 12),
+                                // Light grey label text
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
                           ),
-                        ),
+                          SizedBox(width: screenWidth * 0.013),
+                          SizedBox(
+                            width: screenWidth * 0.2,
+                            child: TextField(
+                              controller: _fpsController,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: const InputDecoration(
+                                labelText: 'Frames interval (ms)',
+                                labelStyle:
+                                    TextStyle(color: Colors.grey, fontSize: 12),
+                                // Light grey label text
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 15),
                       // Button with white text
@@ -233,7 +377,7 @@ class HomePageState extends State<HomePage>
                       ),
                       const SizedBox(height: 25),
                       // Error message in white text
-                      Container(
+                      SizedBox(
                         height: 200,
                         child: Text(
                           errorMsg,
@@ -257,19 +401,23 @@ class HomePageState extends State<HomePage>
 
   Future<int> setUpEverything() async {
     try {
-      //______________________________________________________________________
-      //setting up the ch annel, using IOWebSocketChannel it's designed for non-browser apps
+      //get the url and fps values______________________________________________
       serverUrl = _urlController.text.toString().trim();
-      if (serverUrl.isEmpty) {
-        errorMsg = "You need to enter the server url";
+      String interval = _fpsController.text.toString().trim();
+      if (serverUrl.isEmpty || interval.isEmpty) {
+        errorMsg = "Would you please fill both fields";
         return -5;
       }
-      Uri srvrUrl = Uri.parse(serverUrl);
-      myChannel = IOWebSocketChannel.connect(srvrUrl);
-      //______________________________________________________________________
-
+      frameInterval = int.parse(_fpsController.text.toString().trim());
       //________________________________________________________________________
-      //checking locations and setting up speed updates every 2sec
+
+      //_setting up the channel_________________________________________________
+      String fullServer = "ws://$serverUrl:8000/ws/predict";
+      Uri srvrUrl = Uri.parse(fullServer);
+      myChannel = IOWebSocketChannel.connect(srvrUrl);
+      //________________________________________________________________________
+
+      //checking locations and setting up speed updates every 2sec______________
       int speedStatus = await _locationService.setUpSpeed((speed) {
         _speed = speed;
       });
@@ -280,8 +428,7 @@ class HomePageState extends State<HomePage>
       }
       //________________________________________________________________________
 
-      //set up camera, if error return
-      //________________________________________________________________________
+      //set up camera, if error return__________________________________________
       int a = await _cameraService.setUpCamera();
       if (a != 1) {
         errorMsg = "camera setup prob";
@@ -289,27 +436,12 @@ class HomePageState extends State<HomePage>
       }
       //________________________________________________________________________
 
-
-
-      // Set up the AnimationController to rotate 3 times per second
-      //________________________________________________________________________
-      _rotationController = AnimationController(
-        vsync: this,
-        duration: Duration(
-            milliseconds:
-                rotationSpeed), //the nbr o millisec each rotation takes
-      )..repeat(); // Makes the rotation continuous
-      //________________________________________________________________________
-
-      //setup the listenning and captureimage response each time
-      //________________________________________________________________________
+      //setup the listenning and captureimage response each time________________
       setUpCommunicationWithServer(myChannel);
       //________________________________________________________________________
 
-      //takingPicsLoop();
-      //________________________________________________________________________
-      //_cameraService.captureImage();
-      startSending();
+      //the pics loop___________________________________________________________
+      startSendingImgs();
       //________________________________________________________________________
 
       //if all good we return 1
@@ -328,28 +460,31 @@ class HomePageState extends State<HomePage>
     //if error or disconnection we show the msg
     myChannel.stream.listen(
       (message) {
-        print("ilyaas - just received : $message");
+        print("ilyas - just received : $message");
         _handlingResponse(message);
       },
       onError: (error) {
-        print("server error : $error");
+        print("ilyas : server error : $error");
         setState(() {
           stateMsg = "server error : $error";
         });
       },
       onDone: () {
-        print("disconnected to server");
+        print("ilyas : disconnected to server");
+
+        /// ??????????
         setState(() {
-          stateMsg = "Disconnected to server";
+          isConnected = false;
         });
       },
     );
   }
 
-  /////////////////////////////////////// TAKING PICS LOOP ///////////////////////////////////////////////////
-  Future<void> takingPicsLoop(//IOWebSocketChannel midasChannel
-      ) async {
+  ////////////////////////////////////// Start sending //////////////////////////////////////////
+
+  startSendingImgs() async {
     while (true) {
+      await Future.delayed(Duration(milliseconds: frameInterval));
       await _cameraService.captureImage();
     }
   }
@@ -367,14 +502,8 @@ class HomePageState extends State<HomePage>
   void _handlingResponse(dynamic message) {
     try {
       recNbr++;
-      //print("ilyas : got resp : $recNbr : $message");
-      alertMsg = "";
       myImage = picsList[sentNbr]!;
-
-      //taking next pic
-      ////______________________________________________________
-      //_cameraService.captureImage();
-      ////______________________________________________________
+      isConnected = true;
 
       //prepare objcts from response
       //______________________________________________________
@@ -399,12 +528,40 @@ class HomePageState extends State<HomePage>
     //in all cases i need to remove the img from piclist nd show the state msg
     //______________________________________________________
     picsList.remove(recNbr);
-    // stateMsg = "Frame : $recNbr \n $alertMsg";
     setState(() {});
     //______________________________________________________
   }
 
-  /////////////////////////////////////////// renderAndShowAlert ////////////////////////////////////////////////////////
+  img.Image renderObjct(img.Image myNewImage, int distance, img.Color theColor,
+      int xmin, int xmax, int ymin, int ymax, double x, double y) {
+    try {
+      //show distance on objct
+      img.drawString(
+          myNewImage,
+          font: img.arial24,
+          x: x.toInt(),
+          y: y.toInt(),
+          distance.toString(),
+          color: img.ColorRgb8(255, 0, 0));
+
+      //draw bounding boxes
+      img.drawLine(myNewImage,
+          x1: xmin, y1: ymin, x2: xmax, y2: ymin, color: theColor); // Top edge
+      img.drawLine(myNewImage,
+          x1: xmax, y1: ymin, x2: xmax, y2: ymax, color: theColor);
+      img.drawLine(myNewImage,
+          x1: xmax, y1: ymax, x2: xmin, y2: ymax, color: theColor);
+      img.drawLine(myNewImage,
+          x1: xmin, y1: ymax, x2: xmin, y2: ymin, color: theColor);
+      print("train , all good");// Left edge
+      return myNewImage;
+    } catch (e) {
+      print("train errro $e");
+      return myNewImage;
+    }
+  }
+
+  //////////////////////////////////////// renderAndShowAlert ////////////////////////////////////////////////////////
 
   Uint8List? renderAndAlert(List<dynamic> objects, Uint8List myImg) {
     try {
@@ -412,7 +569,6 @@ class HomePageState extends State<HomePage>
       late img.ColorRgb8 theColor;
       img.Image myNewImage = img.decodeImage(myImg)!;
       int width = myNewImage.width;
-      int height = myNewImage.height;
       List<List<dynamic>> totalAlerts = [];
 
       //*******************************************************************************
@@ -479,6 +635,8 @@ class HomePageState extends State<HomePage>
 
       //*******************************************************************************
 
+      int v = 0;
+      int p = 0;
       for (var obj in objects) {
         // for each objct we get the infos
         //_____________________________________________________________________
@@ -492,8 +650,17 @@ class HomePageState extends State<HomePage>
         double y = (ymin + ((ymax - ymin) / 2));
         //_____________________________________________________________________
 
-        // get the alert, set color and add the alert to totalAlerts
-        //_____________________________________________________________________
+        // make the detectedobjct text ________________________________________
+        if (className == "car") {
+          v++;
+        } else if (className == "person") {
+          p++;
+        }
+        objctText = prepareobjctsText(v, p);
+        //______________________________________________________________________
+
+
+        // get the alert, set color and add the alert to totalAlerts___________
         List<dynamic> alert =
             AlertService.getAlert(className, x, distance, width, _speed);
         if (alert.isEmpty) {
@@ -502,57 +669,27 @@ class HomePageState extends State<HomePage>
           theColor = img.ColorRgb8(255, 0, 0);
           totalAlerts.add(alert);
         }
-        //_____________________________________________________________________
+        //______________________________________________________________________
 
-        //show infos on the objct
-        //____________________________________________________________________
-        img.drawString(
-            myNewImage,
-            font: img.arial24,
-            x: x.toInt(),
-            y: y.toInt(),
-            "$distance",
-            color: img.ColorRgb8(255, 0, 0));
-        //____________________________________________________________________
+        //render the detected objct on the image________________________________
+        myNewImage = renderObjct(
+            myNewImage, distance, theColor, xmin, xmax, ymin, ymax, x, y);
+        //______________________________________________________________________
 
-        //draw bounding boxes
-        //____________________________________________________________________
-        img.drawLine(myNewImage,
-            x1: xmin,
-            y1: ymin,
-            x2: xmax,
-            y2: ymin,
-            color: theColor); // Top edge
-        img.drawLine(myNewImage,
-            x1: xmax,
-            y1: ymin,
-            x2: xmax,
-            y2: ymax,
-            color: theColor); // Right edge
-        img.drawLine(myNewImage,
-            x1: xmax,
-            y1: ymax,
-            x2: xmin,
-            y2: ymax,
-            color: theColor); // Bottom edge
-        img.drawLine(myNewImage,
-            x1: xmin,
-            y1: ymax,
-            x2: xmin,
-            y2: ymin,
-            color: theColor); // Left edge
-        //____________________________________________________________________
       }
 
       //after processing all objcts we check if we got some alerts then we get the nearest one and run its audio
       if (totalAlerts.isNotEmpty) {
         String nearestAlertCategory = totalAlerts.reduce(
             (current, next) => current[1] < next[1] ? current : next)[0];
-        AlertService.playAudio(nearestAlertCategory);
-        alertMsg = msgs[nearestAlertCategory]!;
-        //make animation
+        //if last alert was in last 4 secs we skip
+        lastAlrtDate = thisAlrtDate;
+        thisAlrtDate = DateTime.now();
+        Duration difference = lastAlrtDate.difference(thisAlrtDate);
+        if (difference.inSeconds > 4) {
+          _startAlert(nearestAlertCategory);
+        }
       }
-
       // return the final image
       //____________________________________________________________________
       Uint8List renderedImg = Uint8List.fromList(img.encodeJpg(myNewImage));
@@ -561,15 +698,6 @@ class HomePageState extends State<HomePage>
     } catch (e) {
       print("error in renderImg : $e");
       return myImg;
-    }
-  }
-
-  ////////////////////////////////////// Start sending //////////////////////////////////////////
-
-  startSending() async {
-    while (true) {
-      await Future.delayed(const Duration(milliseconds: 1000));
-      _cameraService.captureImage();
     }
   }
 
@@ -598,5 +726,94 @@ class HomePageState extends State<HomePage>
     stateMsg = '__';
     errorMsg = "";
   }
+
+  /////////////////////////////////////////////// Animations ///////////////////////////////////////////////////
+
+  void setAllAnimations() {
+    //tire speed rotation_________________________________________________________
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: Duration(
+          milliseconds: rotationSpeed), //the nbr o millisec each rotation takes
+    );
+    _rotationController.repeat(); // Makes the rotation continuous
+    //_____________________________________________________________________
+
+    //lightning connect light______________________________________________
+    _visibilityController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+    //_______________________________________________________________________
+
+    //white circle audio size________________________________________________
+    _sizeController = AnimationController(
+      vsync: this,
+      duration:
+          const Duration(milliseconds: 400), // Duration for one full cycle
+    );
+
+    _sizeAnimation = Tween<double>(begin: 22.5, end: 30.0).animate(
+      CurvedAnimation(parent: _sizeController, curve: Curves.easeInOut),
+    );
+    //________________________________________________________________________
+
+    //typed alert animation___________________________________________________
+    _typingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200), // Adjust typing speed
+    );
+
+    _textAnimation = IntTween(begin: 0, end: alertMsg.length).animate(
+      CurvedAnimation(parent: _typingController, curve: Curves.easeInOut),
+    );
+    //________________________________________________________________________
+  }
+
+// Function to start typing animation
+  void _startTypingAnimation() {
+    setState(() {
+      _isTextVisible = true; // Show text when button is pressed
+    });
+    _typingController.forward(); // Start typing animation
+  }
+
+  void _hideText() {
+    setState(() {
+      _isTextVisible = false; // Hide text
+    });
+    _typingController.reset(); // Reset typing animation
+  }
+
+  void _startAlert(String nearestAlertCategory) async {
+    print("alert called");
+    AlertService.playAudio(nearestAlertCategory);
+    //alertMsg = msgs[nearestAlertCategory]!;
+    alertMsg = "Maintain a safe distance from vehicle ahead!";
+    if (nearestAlertCategory == "pedestrian") {
+      alertIcon = Icons.directions_walk_rounded;
+    } else if (nearestAlertCategory == "car") {
+      alertIcon = Icons.directions_car_filled;
+    }
+    _startTypingAnimation();
+    _sizeController.repeat(reverse: true);
+    await Future.delayed(const Duration(milliseconds: 1700));
+    _sizeController.stop();
+    _hideText();
+  }
+
+  String prepareobjctsText(int v, int p) {
+    String txt = "";
+    if (p != 0) {
+      txt = "$p pedestrians\n";
+    }
+    if (v != 0) {
+      txt = "$txt$v vehicles\n";
+    }
+    return txt;
+  }
+
+/////////////////////////////////////////////
 }
+
 /////////////////////////////////////////////// end of class /////////////////////////////////////////////////////////////

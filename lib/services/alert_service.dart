@@ -43,7 +43,7 @@ class AlertService {
       if ((carType.contains(className)) &&
           inCarPedBloc(distance, x, width) &&
           carDanger(distance, speed)) {
-        return ["vehicle", distance];
+        return ["car", distance];
       } else
       // if pedestrian in the bloc in front of me, and stop distance isn't respected !
       if ((pedestrianType.contains(className)) &&
@@ -55,7 +55,7 @@ class AlertService {
       if ((signType.contains(className)) &&
           inSignBloc(distance, x, width) &&
           signDanger(distance, speed)) {
-        return [className, distance];
+        return ["sign", distance];
       } else {
         return [];
       }

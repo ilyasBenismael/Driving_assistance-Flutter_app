@@ -76,12 +76,11 @@ class CameraService {
 ////////////////////////////////////////// IMAGE CAPTURE ////////////////////////////////////////////////////
 
 //we capture image, resize it,
-  Future<void> captureImage() async {
+  Future<void>captureImage() async {
     try {
       final image = await _cameraController.takePicture();
       Uint8List imageBytes = await image.readAsBytes();
       resizeIsolateSP.send(imageBytes);
-      //onImageCaptured(resizedImg);
     } catch (e) {
       print("error in captureImage : $e");
     }

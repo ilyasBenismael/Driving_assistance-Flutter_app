@@ -3,12 +3,10 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
-
 class LocationService {
   final BuildContext context;
 
   LocationService(this.context);
-
 
 ///////////////////////////////////////// CHECK LOCATION PERMISSION //////////////////////////////////////////////
 
@@ -34,8 +32,6 @@ class LocationService {
       return -3;
     }
   }
-
-
 
 ///////////////////////////////////////////////// SETTING UP SPEED /////////////////////////////////////////////////
 
@@ -69,4 +65,3 @@ class LocationService {
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 }
-

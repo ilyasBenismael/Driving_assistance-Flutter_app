@@ -30,6 +30,7 @@ flutter:
     - assets/images/tire.png
     - assets/images/t1.png
     - assets/images/t2.png
+    - assets/images/road_pov.jpg
     - assets/audios/pedestrian.mp3
     - assets/audios/vehicle.mp3
   uses-material-design: true
