@@ -21,51 +21,76 @@ class HomePage extends StatefulWidget {
 //////////////////////////////////////// Our main class ////////////////////////////////////////////////
 
 class HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  //////////////////////// Vars /////////////////////
+/////////////////////////// Vars /////////////////////
+// TextEditingControllers
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _fpsController = TextEditingController();
 
+// AnimationControllers
   late AnimationController _rotationController;
   late AnimationController _visibilityController;
   late AnimationController _sizeController;
   late AnimationController _typingController;
+
+// Animations
   late Animation<int> _textAnimation;
   late Animation<double> _sizeAnimation;
-  late int frameInterval;
-  bool _isTextVisible = false;
-  late IconData alertIcon = Icons.directions_car;
-  late double _speed = 0;
-  String objctText = "";
-  DateTime thisAlrtDate = DateTime(2023, 11, 22, 14, 30, 45);
-  late DateTime lastAlrtDate;
-  int rotationSpeed = 5000;
 
+// Strings
+  String alertMsg = "";
+  String objctText = "";
+  String serverUrl = "";
+  String stateMsg = "";
+  String errorMsg = "";
+
+// Integers
+  int rotationSpeed = 5000;
+  int recNbr = 0;
+  int sentNbr = 0;
+  late int frameInterval;
+
+// Doubles
+  late double _speed = 0;
+
+// Booleans
+  bool _isTextVisible = false;
+  bool tik = true;
+  bool isConnected = false;
+
+// Dates
+  DateTime thisAlrtDate = DateTime(2024, 12, 2, 14, 30, 45);
+  DateTime lastAlrtDate = DateTime(2024, 12, 2, 13, 25, 35);
+
+// IconData
+  IconData alertIcon = Icons.directions_car;
+
+// Uint8List
+  Uint8List? myImage;
+  Map<int, Uint8List?> picsList = {};
+
+// Maps
   Map<String, String> msgs = {
     "vehicle": "Maintain a safe distance from vehicle ahead!",
-    "pedestrian": "Pedestrian ahead, Slow down!"
+    "pedestrian": "Pedestrian ahead, Slow down!",
+    "sign": "Approaching traffic sign, reduce speed!"
   };
 
-  ////distance ranges :
+// Lists (distance ranges)
   static final List<double> midSign = [0.15, 0.85];
   static final List<double> mid35 = [0.325, 0.675];
   static final List<double> mid20 = [0.4, 0.6];
   static final List<double> mid15 = [0.425, 0.575];
   static final List<double> mid10 = [0.45, 0.55];
 
-  //DateTime lastAlertDate = DateTime.now();
+// Futures
   late Future<int> cameraAndLocationState;
-  String serverUrl = "";
-  Uint8List? myImage;
-  Map<int, Uint8List?> picsList = {};
+
+// Static Variables
+  static late IOWebSocketChannel myChannel;
+
+// Other Objects
   late CameraService _cameraService;
   late LocationService _locationService;
-  String errorMsg = '';
-  String alertMsg = "Maintain a safe distance from vehicle ahead!";
-  int recNbr = 0;
-  int sentNbr = 0;
-  String stateMsg = "";
-  bool isConnected = false;
-  static late IOWebSocketChannel myChannel;
   late SendPort resizePort;
 
 ////////////////////////////////// Init state  //////////////////////////////////
@@ -100,12 +125,12 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           } else if (snapshot.hasData && snapshot.data == 1) {
             return Center(
                 child: SizedBox(
-                    //color: Colors.green,
                     width: screenWidth * 0.75,
                     child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          const SizedBox(height: 20),
                           Stack(
                             children: [
                               SizedBox(
@@ -161,14 +186,19 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           ),
                                           const SizedBox(width: 5),
                                           // Text
-                                          Text(
-                                            isConnected
-                                                ? "Connected"
-                                                : "Disconnected",
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              color: Colors
-                                                  .white70, // Customize color as needed
+                                          GestureDetector(
+                                            onTap: () {
+                                              _startAlert("sign");
+                                            },
+                                            child: Text(
+                                              isConnected
+                                                  ? "Connected"
+                                                  : "Disconnected",
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors
+                                                    .white70, // Customize color as needed
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -204,36 +234,6 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                       )),
                                 ),
                               ),
-
-                              ///////////////////////////////AUDIO CIRCLE
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                child: AnimatedBuilder(
-                                  animation: _sizeAnimation,
-                                  builder: (context, child) {
-                                    return SizedBox(
-                                        width: 50,
-                                        height: 50,
-                                        child: Center(
-                                            child: GestureDetector(
-                                          onTap: () {
-                                            _startAlert("vehicle");
-                                          },
-                                          child: Container(
-                                              width: _sizeAnimation.value,
-                                              height: _sizeAnimation.value,
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    Colors.white.withOpacity(1),
-                                                // Green color
-                                                shape: BoxShape
-                                                    .circle, // Circular shape
-                                              )),
-                                        )));
-                                  },
-                                ),
-                              ),
                               Positioned(
                                 bottom: 0,
                                 right: 0,
@@ -267,11 +267,11 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           },
                                         ),
                                         const SizedBox(width: 5),
-                                        Text(_speed.toStringAsFixed(2),
+                                        Text(_speed.toStringAsFixed(0),
                                             style: const TextStyle(
                                                 fontSize: 15,
                                                 color: Colors.white70)),
-                                        const Text('Km/h',
+                                        const Text(' Km/h ',
                                             style: TextStyle(
                                                 fontSize: 15,
                                                 color: Colors.white70)),
@@ -283,46 +283,72 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ],
                           ),
 
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 10),
                           ////////////////////////////THE ALERT LINE
-                          _isTextVisible
-                              ? SizedBox(
-                                  height: 30,
-                                  child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.start,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        const SizedBox(width: 6),
-                                        Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                              0, 0, 0, 5),
-                                          child: Icon(
-                                            alertIcon,
-                                            size: 20,
-                                            color: Colors.white70,
-                                          ),
+                          SizedBox(
+                            height: 30,
+                            child: _isTextVisible
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                        AnimatedBuilder(
+                                          animation: _sizeAnimation,
+                                          builder: (context, child) {
+                                            return SizedBox(
+                                                width: 50,
+                                                height: 50,
+                                                child: Center(
+                                                    child: Container(
+                                                        width: _sizeAnimation
+                                                            .value,
+                                                        height: _sizeAnimation
+                                                            .value,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white
+                                                              .withOpacity(1),
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ))));
+                                          },
                                         ),
                                         const SizedBox(width: 2),
-                                        AnimatedBuilder(
-                                            animation: _textAnimation,
-                                            builder: (context, child) {
-                                              String displayedText =
-                                                  alertMsg.substring(
-                                                      0, _textAnimation.value);
-                                              return Text(displayedText,
-                                                  style: const TextStyle(
-                                                    fontSize: 16.5,
-                                                    color: Colors.white60,
-                                                    fontWeight: FontWeight.bold,
-                                                  ));
-                                            })
-                                      ]),
-                                )
-                              : Container(height: 30)
+                                        SizedBox(
+                                          height: 30,
+                                          child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                AnimatedBuilder(
+                                                    animation: _textAnimation,
+                                                    builder: (context, child) {
+                                                      String displayedText =
+                                                          alertMsg.substring(
+                                                              0,
+                                                              _textAnimation
+                                                                  .value);
+                                                      return Text(displayedText,
+                                                          style:
+                                                              const TextStyle(
+                                                            fontSize: 16.5,
+                                                            color:
+                                                                Colors.white60,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ));
+                                                    }),
+                                              ]),
+                                        )
+                                      ])
+                                : Container(height: 30),
+                          ),
                         ])));
           } else {
+            //what to show if there is an error :
             return SafeArea(
               child: SingleChildScrollView(
                 child: Center(
@@ -368,7 +394,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       const SizedBox(height: 15),
                       // Button with white text
                       ElevatedButton(
-                        onPressed: start,
+                        onPressed: retry,
                         style: ElevatedButton.styleFrom(
                           textStyle: const TextStyle(
                               fontSize: 16, color: Colors.white),
@@ -401,6 +427,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Future<int> setUpEverything() async {
     try {
+      //return 1;
       //get the url and fps values______________________________________________
       serverUrl = _urlController.text.toString().trim();
       String interval = _fpsController.text.toString().trim();
@@ -412,7 +439,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       //________________________________________________________________________
 
       //_setting up the channel_________________________________________________
-      String fullServer = "ws://$serverUrl:8000/ws/predict";
+      String fullServer = "ws://$serverUrl/ws/predict";
       Uri srvrUrl = Uri.parse(fullServer);
       myChannel = IOWebSocketChannel.connect(srvrUrl);
       //________________________________________________________________________
@@ -448,8 +475,16 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       return 1;
     } catch (e) {
       print("main error : $e");
-      errorMsg = "error : ${e.toString()}";
       return -3;
+    }
+  }
+
+  ////////////////////////////////////// Start sending //////////////////////////////////////////
+
+  startSendingImgs() async {
+    while (true) {
+      await Future.delayed(Duration(milliseconds: frameInterval));
+      _cameraService.captureImage();
     }
   }
 
@@ -460,19 +495,16 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     //if error or disconnection we show the msg
     myChannel.stream.listen(
       (message) {
-        print("ilyas - just received : $message");
+        print("ilyas : msg received : $message");
         _handlingResponse(message);
       },
       onError: (error) {
         print("ilyas : server error : $error");
-        setState(() {
-          stateMsg = "server error : $error";
-        });
       },
       onDone: () {
         print("ilyas : disconnected to server");
 
-        /// ??????????
+        /// stop resources and show message to restart app
         setState(() {
           isConnected = false;
         });
@@ -480,17 +512,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  ////////////////////////////////////// Start sending //////////////////////////////////////////
-
-  startSendingImgs() async {
-    while (true) {
-      await Future.delayed(Duration(milliseconds: frameInterval));
-      await _cameraService.captureImage();
-    }
-  }
-
   ////////////////////////////////////// SEND TO MYCHANNEL //////////////////////////////////////////////
-
   void sendToMychannel(Uint8List img) async {
     myChannel.sink.add(img);
     sentNbr++;
@@ -505,55 +527,71 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       myImage = picsList[sentNbr]!;
       isConnected = true;
 
-      //prepare objcts from response
-      //______________________________________________________
-      Map<String, dynamic> jsonResponse = {};
-      jsonResponse = jsonDecode(message);
+      //prepare objcts from response__________________________
+      Map<String, dynamic> jsonResponse = jsonDecode(message);
       List<dynamic> objects = jsonResponse['objects'];
       //______________________________________________________
 
-      //get rendered img and update alert msg
-      //______________________________________________________
-      myImage = renderAndAlert(objects, picsList[recNbr]!);
-      //______________________________________________________
+      //get rendered img and update alert msg_________________
+      if (objects.isNotEmpty) {
+        myImage = renderAndAlert(objects, picsList[recNbr]!);
+      } //______________________________________________________
 
-      //update animation
-      //______________________________________________________
+      //update animation__________________________________________________
       _updateRotCntrl();
       //______________________________________________________
     } catch (e) {
       print("error : e");
     }
 
-    //in all cases i need to remove the img from piclist nd show the state msg
-    //______________________________________________________
+    //in all cases i need to remove the img from piclist nd show the state msg___
     picsList.remove(recNbr);
     setState(() {});
     //______________________________________________________
   }
 
+  /////////////////////////////////// RENDER AN OBJECT //////////////////////////////////////////////
   img.Image renderObjct(img.Image myNewImage, int distance, img.Color theColor,
       int xmin, int xmax, int ymin, int ymax, double x, double y) {
     try {
       //show distance on objct
       img.drawString(
           myNewImage,
-          font: img.arial24,
+          font: img.arial14,
           x: x.toInt(),
           y: y.toInt(),
-          distance.toString(),
-          color: img.ColorRgb8(255, 0, 0));
+          "$distance m",
+          color: img.ColorRgb8(0, 100, 0));
 
       //draw bounding boxes
       img.drawLine(myNewImage,
-          x1: xmin, y1: ymin, x2: xmax, y2: ymin, color: theColor); // Top edge
+          x1: xmin,
+          y1: ymin,
+          x2: xmax,
+          y2: ymin,
+          color: theColor,
+          thickness: 1.5); // Top edge
       img.drawLine(myNewImage,
-          x1: xmax, y1: ymin, x2: xmax, y2: ymax, color: theColor);
+          x1: xmax,
+          y1: ymin,
+          x2: xmax,
+          y2: ymax,
+          color: theColor,
+          thickness: 1.5);
       img.drawLine(myNewImage,
-          x1: xmax, y1: ymax, x2: xmin, y2: ymax, color: theColor);
+          x1: xmax,
+          y1: ymax,
+          x2: xmin,
+          y2: ymax,
+          color: theColor,
+          thickness: 1.5);
       img.drawLine(myNewImage,
-          x1: xmin, y1: ymax, x2: xmin, y2: ymin, color: theColor);
-      print("train , all good");// Left edge
+          x1: xmin,
+          y1: ymax,
+          x2: xmin,
+          y2: ymin,
+          color: theColor,
+          thickness: 1.5);
       return myNewImage;
     } catch (e) {
       print("train errro $e");
@@ -569,6 +607,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       late img.ColorRgb8 theColor;
       img.Image myNewImage = img.decodeImage(myImg)!;
       int width = myNewImage.width;
+      //int height = myNewImage.height;
       List<List<dynamic>> totalAlerts = [];
 
       //*******************************************************************************
@@ -576,7 +615,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // ///// Colors
       // img.Color greenColor = img.ColorRgb8(0, 255, 0); // Green
       // img.Color redColor = img.ColorRgb8(255, 0, 0); // Red
-      // img.Color blueColor = img.ColorRgb8(0, 0, 255); // Blue
+      // img.Color blueColor = img.ColorRgb8(0, 0, 255 ); // Blue
       // img.Color blackColor = img.ColorRgb8(0, 0, 0); // Black
       // img.Color whiteColor = img.ColorRgb8(255, 255, 255); // White
       //
@@ -637,9 +676,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       int v = 0;
       int p = 0;
+      int s = 0;
       for (var obj in objects) {
-        // for each objct we get the infos
-        //_____________________________________________________________________
+        // for each objct we get the infos______________________________________
         String className = obj['class'];
         int xmin = obj['features']['xmin'].toInt();
         int ymin = obj['features']['ymin'].toInt();
@@ -648,60 +687,64 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
         int distance = obj['distance_estimated'].toInt();
         double x = (xmin + ((xmax - xmin) / 2));
         double y = (ymin + ((ymax - ymin) / 2));
-        //_____________________________________________________________________
-
-        // make the detectedobjct text ________________________________________
-        if (className == "car") {
-          v++;
-        } else if (className == "person") {
-          p++;
-        }
-        objctText = prepareobjctsText(v, p);
         //______________________________________________________________________
 
+        // calculate nbr of detections__________________________________________
+        if (AlertService.carType.contains(className)) {
+          v++;
+        } else if (AlertService.pedestrianType.contains(className)) {
+          p++;
+        } else if (AlertService.signType.contains(className)) {
+          s++;
+        }
+        //______________________________________________________________________
 
-        // get the alert, set color and add the alert to totalAlerts___________
+        // get the alert of this objct, set color and add the alert to totalAlerts___________
         List<dynamic> alert =
             AlertService.getAlert(className, x, distance, width, _speed);
         if (alert.isEmpty) {
-          theColor = img.ColorRgb8(0, 128, 0);
+          theColor = img.ColorRgb8(180, 180, 0);
         } else {
-          theColor = img.ColorRgb8(255, 0, 0);
+          theColor = img.ColorRgb8(220, 0, 0);
           totalAlerts.add(alert);
         }
-        //______________________________________________________________________
-
+//
         //render the detected objct on the image________________________________
         myNewImage = renderObjct(
             myNewImage, distance, theColor, xmin, xmax, ymin, ymax, x, y);
         //______________________________________________________________________
-
       }
 
-      //after processing all objcts we check if we got some alerts then we get the nearest one and run its audio
+      objctText = prepareobjctsText(v, p, s);
+
+      //after processing all objcts we check if we got some alerts
+      //then we get the nearest one and run its audio___________________________
+
       if (totalAlerts.isNotEmpty) {
-        String nearestAlertCategory = totalAlerts.reduce(
-            (current, next) => current[1] < next[1] ? current : next)[0];
+        String nearestAlertCategory = totalAlerts
+            .reduce((current, next) => current[1] < next[1] ? current : next)[0]
+            .toString()
+            .trim();
         //if last alert was in last 4 secs we skip
-        lastAlrtDate = thisAlrtDate;
-        thisAlrtDate = DateTime.now();
-        Duration difference = lastAlrtDate.difference(thisAlrtDate);
-        if (difference.inSeconds > 4) {
+        if (DateTime.now().difference(lastAlrtDate).inSeconds > 4) {
+          lastAlrtDate = DateTime.now();
           _startAlert(nearestAlertCategory);
         }
       }
-      // return the final image
-      //____________________________________________________________________
+      //________________________________________________________________________
+
+      // return the final image_________________________________________________
       Uint8List renderedImg = Uint8List.fromList(img.encodeJpg(myNewImage));
       return renderedImg;
-      //____________________________________________________________________
+      //________________________________________________________________________
     } catch (e) {
-      print("error in renderImg : $e");
+      print("train / error in renderImg and getting alert : $e");
       return myImg;
     }
   }
 
   ////////////////////////////////////// UPDATE ROTATION SPEED //////////////////////////////////////////////
+
   void _updateRotCntrl() {
     int durationInMillis =
         rotationSpeed = (20000 / (_speed + 1)).clamp(50, 3500).toInt();
@@ -712,7 +755,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   ////////////////////////////////////////////// RETRY //////////////////////////////////////////////////
 
-  void start() {
+  void retry() {
     cameraAndLocationState = setUpEverything();
     setState(() {});
   }
@@ -727,7 +770,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     errorMsg = "";
   }
 
-  /////////////////////////////////////////////// Animations ///////////////////////////////////////////////////
+  ////////////////////////////////////////////// Animations ///////////////////////////////////////////////////
 
   void setAllAnimations() {
     //tire speed rotation_________________________________________________________
@@ -761,7 +804,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     //typed alert animation___________________________________________________
     _typingController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200), // Adjust typing speed
+      duration: const Duration(milliseconds: 2700), // Adjust typing speed
     );
 
     _textAnimation = IntTween(begin: 0, end: alertMsg.length).animate(
@@ -775,6 +818,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     setState(() {
       _isTextVisible = true; // Show text when button is pressed
     });
+    _textAnimation = IntTween(begin: 0, end: alertMsg.length).animate(
+      CurvedAnimation(parent: _typingController, curve: Curves.easeInOut),
+    );
     _typingController.forward(); // Start typing animation
   }
 
@@ -786,29 +832,34 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _startAlert(String nearestAlertCategory) async {
-    print("alert called");
+    print("train, yes $nearestAlertCategory");
     AlertService.playAudio(nearestAlertCategory);
-    //alertMsg = msgs[nearestAlertCategory]!;
-    alertMsg = "Maintain a safe distance from vehicle ahead!";
-    if (nearestAlertCategory == "pedestrian") {
-      alertIcon = Icons.directions_walk_rounded;
-    } else if (nearestAlertCategory == "car") {
-      alertIcon = Icons.directions_car_filled;
-    }
+    alertMsg = msgs[nearestAlertCategory]!;
+    print("train, $alertMsg");
+    // if (nearestAlertCategory == "pedestrian") {
+    //   alertIcon = Icons.directions_walk_rounded;
+    // } else if (nearestAlertCategory == "vehicle") {
+    //   alertIcon = Icons.directions_car_filled;
+    // } else if (nearestAlertCategory == "sign") {
+    //   alertIcon = Icons.traffic_outlined;
+    // }
     _startTypingAnimation();
     _sizeController.repeat(reverse: true);
-    await Future.delayed(const Duration(milliseconds: 1700));
+    await Future.delayed(const Duration(milliseconds: 2700));
     _sizeController.stop();
     _hideText();
   }
 
-  String prepareobjctsText(int v, int p) {
+  String prepareobjctsText(int v, int p, int s) {
     String txt = "";
     if (p != 0) {
       txt = "$p pedestrians\n";
     }
     if (v != 0) {
       txt = "$txt$v vehicles\n";
+    }
+    if (s != 0) {
+      txt = "$txt$s traffic signs";
     }
     return txt;
   }

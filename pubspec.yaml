@@ -33,4 +33,5 @@ flutter:
     - assets/images/road_pov.jpg
     - assets/audios/pedestrian.mp3
     - assets/audios/vehicle.mp3
+    - assets/audios/sign.mp3
   uses-material-design: true

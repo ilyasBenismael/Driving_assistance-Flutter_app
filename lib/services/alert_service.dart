@@ -6,8 +6,6 @@ class AlertService {
 
   static final List<String> pedestrianType = [
     "person",
-    "cat",
-    "dog",
     "bycicle"
   ];
   static final List<String> carType = [
@@ -18,7 +16,8 @@ class AlertService {
     "motorcycle"
   ];
   static final List<String> signType = ["stop sign", "traffic light"];
-  static final List<String> animalType = ["cow", "horse", "sheep"];
+
+  //static final List<String> animalType = ["cow", "horse", "sheep"];
 
   ////distance ranges :
   static final List<double> midSign = [0.15, 0.85]; // middle for signs
@@ -43,7 +42,7 @@ class AlertService {
       if ((carType.contains(className)) &&
           inCarPedBloc(distance, x, width) &&
           carDanger(distance, speed)) {
-        return ["car", distance];
+        return ["vehicle", distance];
       } else
       // if pedestrian in the bloc in front of me, and stop distance isn't respected !
       if ((pedestrianType.contains(className)) &&
