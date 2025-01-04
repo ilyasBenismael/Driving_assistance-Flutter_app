@@ -18,7 +18,6 @@ class LocationService {
         _toastMsg('You need to activate the location');
         return -1;
       }
-
       LocationPermission permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
@@ -42,7 +41,7 @@ class LocationService {
       return permissionStatus;
     }
 
-    //if it's not android it won't work, we make a 3sec speed update
+    //if it's not android it won't work
     if (defaultTargetPlatform == TargetPlatform.android) {
       Geolocator.getPositionStream(
         locationSettings: AndroidSettings(

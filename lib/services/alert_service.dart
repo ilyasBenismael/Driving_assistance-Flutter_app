@@ -4,10 +4,7 @@ class AlertService {
   static const pedestrianText = "Pedestrian ahead, Slow Down!";
   static const vehicleText = "Maintain safe distance from vehicle ahead!";
 
-  static final List<String> pedestrianType = [
-    "person",
-    "bycicle"
-  ];
+  static final List<String> pedestrianType = ["person", "bycicle"];
   static final List<String> carType = [
     "car",
     "van",
@@ -32,29 +29,33 @@ class AlertService {
 
   static List<dynamic> getAlert(
       String className, double x, int distance, int width, double speed) {
-    //if we are so slow just skip, if object is more than 40m away,
     try {
-      if (speed < 10 || distance > 50) {
+
+      // If the speed is very slow (< 10) or the object is farther than 70m: no alert
+      if (speed < 10 || distance > 70) {
         return [];
       }
 
-      // if vehicle in the bloc in front of me and safety distance isn't respected !
+      // If a vehicle is in front and the safety distance isn't respected: alert
       if ((carType.contains(className)) &&
           inCarPedBloc(distance, x, width) &&
           carDanger(distance, speed)) {
         return ["vehicle", distance];
-      } else
-      // if pedestrian in the bloc in front of me, and stop distance isn't respected !
-      if ((pedestrianType.contains(className)) &&
+      }
+
+      // If a pedestrian is in front and the stopping distance isn't respected: alert
+      else if ((pedestrianType.contains(className)) &&
           inCarPedBloc(distance, x, width) &&
           pedestrianDanger(distance, speed)) {
         return ["pedestrian", distance];
-      } else
-      //   Traffic Signs
-      if ((signType.contains(className)) &&
+      }
+
+      // If a traffic_sign is in front and the stopping distance isn't respected: alert
+      else if ((signType.contains(className)) &&
           inSignBloc(distance, x, width) &&
           signDanger(distance, speed)) {
         return ["sign", distance];
+
       } else {
         return [];
       }
@@ -68,6 +69,7 @@ class AlertService {
 
   static bool inCarPedBloc(int distance, double x, int width) {
     List ourMid = [];
+
     //only below 45 are taken in consid
     if (distance < 13) {
       ourMid = mid35;

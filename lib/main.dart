@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:samaw/screens/home_page.dart';
 import 'package:flutter/services.dart';
+import 'package:samaw/screens/splash_screen.dart';
 
 
 void main() {
@@ -16,7 +17,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
-        '/': (context) => const HomePage(),
+        '/': (context) =>  const HomePage(),
+       // '/home': (context) => const HomePage(),
       },
     );
   }

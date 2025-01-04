@@ -48,14 +48,14 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int recNbr = 0;
   int sentNbr = 0;
   late int frameInterval;
-
+//
 // Doubles
   late double _speed = 0;
 
 // Booleans
   bool _isTextVisible = false;
   bool tik = true;
-  bool isConnected = false;
+  bool isConnected = true;
 
 // Dates
   DateTime thisAlrtDate = DateTime(2024, 12, 2, 14, 30, 45);
@@ -64,7 +64,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 // IconData
   IconData alertIcon = Icons.directions_car;
 
-// Uint8List
+// Images
   Uint8List? myImage;
   Map<int, Uint8List?> picsList = {};
 
@@ -137,13 +137,13 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 width: screenWidth * 0.75,
                                 height: screenWidth * 0.75 * 0.5,
                                 child: myImage != null
-                                    ? Image.memory(
-                                        myImage!,
+                                    ? FadeInImage(
+                                        placeholder: MemoryImage(myImage!),
+                                        // Use the same image as the placeholder to prevent flickering
+                                        image: MemoryImage(myImage!),
                                         fit: BoxFit.cover,
                                       )
-                                    : Container(
-                                        color: Colors.black,
-                                      ),
+                                    : Container(color : Colors.black),
                               ),
                               Positioned(
                                 top: 4,
@@ -423,6 +423,49 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
 ////////////////////////////////////////////// END OF BUILD ////////////////////////////////////////////////////////
 
+  ////////////////////////////////////////////// setAllAnimations ///////////////////////////////////////////////////
+
+  void setAllAnimations() {
+    //tire speed rotation_________________________________________________________
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: Duration(
+          milliseconds: rotationSpeed), //the nbr o millisec each rotation takes
+    );
+    _rotationController.repeat(); // Makes the rotation continuous
+    //_____________________________________________________________________
+
+    //lightning connect light______________________________________________
+    _visibilityController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+    //_______________________________________________________________________
+
+    //white circle audio size________________________________________________
+    _sizeController = AnimationController(
+      vsync: this,
+      duration:
+          const Duration(milliseconds: 400), // Duration for one full cycle
+    );
+
+    _sizeAnimation = Tween<double>(begin: 22.5, end: 30.0).animate(
+      CurvedAnimation(parent: _sizeController, curve: Curves.easeInOut),
+    );
+    //________________________________________________________________________
+
+    //typed alert animation___________________________________________________
+    _typingController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2700), // Adjust typing speed
+    );
+
+    _textAnimation = IntTween(begin: 0, end: alertMsg.length).animate(
+      CurvedAnimation(parent: _typingController, curve: Curves.easeInOut),
+    );
+    //________________________________________________________________________
+  }
+
 ///////////////////////////////////////////// SETUPEVERYTHING ////////////////////////////////////////////////////////
 
   Future<int> setUpEverything() async {
@@ -448,9 +491,9 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       int speedStatus = await _locationService.setUpSpeed((speed) {
         _speed = speed;
       });
-      //if anything unusual happens we
+      //if anything unusual happens we return -1
       if (speedStatus != 1) {
-        errorMsg = "Location Problem";
+        errorMsg = "Grant location access to continue.";
         return -1;
       }
       //________________________________________________________________________
@@ -458,7 +501,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       //set up camera, if error return__________________________________________
       int a = await _cameraService.setUpCamera();
       if (a != 1) {
-        errorMsg = "camera setup prob";
+        errorMsg = "Camera setup problem";
         return -2;
       }
       //________________________________________________________________________
@@ -482,29 +525,27 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
   ////////////////////////////////////// Start sending //////////////////////////////////////////
 
   startSendingImgs() async {
-    while (true) {
+    while (isConnected) {
       await Future.delayed(Duration(milliseconds: frameInterval));
-      _cameraService.captureImage();
+      print("ilyas : 1 - Before taking  img(${sentNbr+1}) : ${DateTime.now()}");
+      await _cameraService.captureImage();
     }
   }
 
 ///////////////////////////////// setUpCommunicationWithServer ////////////////////////////////////////////////
 
   void setUpCommunicationWithServer(IOWebSocketChannel myChannel) {
-    //whenever I get the rendered image from server, we show it and send back a new one,
-    //if error or disconnection we show the msg
+    //whenever I get the rendered image from server successfully we render it and check any alerts
+    //if error or disconnection we show the msg then listenning for a new response
     myChannel.stream.listen(
       (message) {
-        print("ilyas : msg received : $message");
         _handlingResponse(message);
       },
       onError: (error) {
-        print("ilyas : server error : $error");
+        print("Server error : $error");
       },
       onDone: () {
-        print("ilyas : disconnected to server");
-
-        /// stop resources and show message to restart app
+        print("Disconnected to server");
         setState(() {
           isConnected = false;
         });
@@ -517,13 +558,15 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     myChannel.sink.add(img);
     sentNbr++;
     picsList[sentNbr] = img;
-    print("ilyas : just sent img ${DateTime.now()}");
+    print("ilyas - 5 - after sending img($sentNbr) : ${DateTime.now()}");
   }
 
   /////////////////////////////////// HANDLING RESPONSE //////////////////////////////////////////////
   void _handlingResponse(dynamic message) {
     try {
       recNbr++;
+      print(
+          "ilyas - 6 - getting response from server img($recNbr) : ${DateTime.now()}");
       myImage = picsList[sentNbr]!;
       isConnected = true;
 
@@ -535,68 +578,19 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       //get rendered img and update alert msg_________________
       if (objects.isNotEmpty) {
         myImage = renderAndAlert(objects, picsList[recNbr]!);
-      } //______________________________________________________
+      } //____________________________________________________
 
-      //update animation__________________________________________________
+      //update animation______________________________________
       _updateRotCntrl();
       //______________________________________________________
     } catch (e) {
       print("error : e");
     }
 
-    //in all cases i need to remove the img from piclist nd show the state msg___
+    //in all cases i need to remove the img from piclist nd show the state msg
     picsList.remove(recNbr);
     setState(() {});
-    //______________________________________________________
-  }
-
-  /////////////////////////////////// RENDER AN OBJECT //////////////////////////////////////////////
-  img.Image renderObjct(img.Image myNewImage, int distance, img.Color theColor,
-      int xmin, int xmax, int ymin, int ymax, double x, double y) {
-    try {
-      //show distance on objct
-      img.drawString(
-          myNewImage,
-          font: img.arial14,
-          x: x.toInt(),
-          y: y.toInt(),
-          "$distance m",
-          color: img.ColorRgb8(0, 100, 0));
-
-      //draw bounding boxes
-      img.drawLine(myNewImage,
-          x1: xmin,
-          y1: ymin,
-          x2: xmax,
-          y2: ymin,
-          color: theColor,
-          thickness: 1.5); // Top edge
-      img.drawLine(myNewImage,
-          x1: xmax,
-          y1: ymin,
-          x2: xmax,
-          y2: ymax,
-          color: theColor,
-          thickness: 1.5);
-      img.drawLine(myNewImage,
-          x1: xmax,
-          y1: ymax,
-          x2: xmin,
-          y2: ymax,
-          color: theColor,
-          thickness: 1.5);
-      img.drawLine(myNewImage,
-          x1: xmin,
-          y1: ymax,
-          x2: xmin,
-          y2: ymin,
-          color: theColor,
-          thickness: 1.5);
-      return myNewImage;
-    } catch (e) {
-      print("train errro $e");
-      return myNewImage;
-    }
+    //________________________________________________________
   }
 
   //////////////////////////////////////// renderAndShowAlert ////////////////////////////////////////////////////////
@@ -677,6 +671,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
       int v = 0;
       int p = 0;
       int s = 0;
+
       for (var obj in objects) {
         // for each objct we get the infos______________________________________
         String className = obj['class'];
@@ -699,7 +694,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
         }
         //______________________________________________________________________
 
-        // get the alert of this objct, set color and add the alert to totalAlerts___________
+        //get the alert for this objct, set the rendering color to red if it's dangerous___________
         List<dynamic> alert =
             AlertService.getAlert(className, x, distance, width, _speed);
         if (alert.isEmpty) {
@@ -708,30 +703,27 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           theColor = img.ColorRgb8(220, 0, 0);
           totalAlerts.add(alert);
         }
-//
+
         //render the detected objct on the image________________________________
         myNewImage = renderObjct(
             myNewImage, distance, theColor, xmin, xmax, ymin, ymax, x, y);
         //______________________________________________________________________
       }
+      print(
+          "ilyas - 7 - after checking alerts and rendering img($recNbr) : ${DateTime.now()}");
 
-      objctText = prepareobjctsText(v, p, s);
-
-      //after processing all objcts we check if we got some alerts
-      //then we get the nearest one and run its audio___________________________
-
-      if (totalAlerts.isNotEmpty) {
-        String nearestAlertCategory = totalAlerts
-            .reduce((current, next) => current[1] < next[1] ? current : next)[0]
-            .toString()
-            .trim();
-        //if last alert was in last 4 secs we skip
-        if (DateTime.now().difference(lastAlrtDate).inSeconds > 4) {
-          lastAlrtDate = DateTime.now();
-          _startAlert(nearestAlertCategory);
-        }
-      }
+      //update the detected objcts text_________________________________________
+      objctText = updateDtcObjTxt(v, p, s);
       //________________________________________________________________________
+
+      //after processing all objcts we check if we got some alerts so we can
+      //launch it___________________________
+      if (totalAlerts.isNotEmpty) {
+        launchAlert(totalAlerts);
+        print(
+            "ilyas - 8 - launching alert img($recNbr) : ${DateTime.now()}");
+
+      } //_______________________________________________________________________
 
       // return the final image_________________________________________________
       Uint8List renderedImg = Uint8List.fromList(img.encodeJpg(myNewImage));
@@ -743,114 +735,59 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  ////////////////////////////////////// UPDATE ROTATION SPEED //////////////////////////////////////////////
+  /////////////////////////////////// RENDER AN OBJECT //////////////////////////////////////////////
 
-  void _updateRotCntrl() {
-    int durationInMillis =
-        rotationSpeed = (20000 / (_speed + 1)).clamp(50, 3500).toInt();
-    _rotationController.duration = Duration(milliseconds: durationInMillis);
-    _rotationController.repeat();
-    print("ilyas : rotation updated / speed : $_speed");
+  img.Image renderObjct(img.Image myNewImage, int distance, img.Color theColor,
+      int xmin, int xmax, int ymin, int ymax, double x, double y) {
+    try {
+      //show distance on objct
+      img.drawString(
+          myNewImage,
+          font: img.arial14,
+          x: x.toInt(),
+          y: y.toInt(),
+          "$distance m",
+          color: img.ColorRgb8(0, 100, 0));
+
+      //draw bounding boxes
+      img.drawLine(myNewImage,
+          x1: xmin,
+          y1: ymin,
+          x2: xmax,
+          y2: ymin,
+          color: theColor,
+          thickness: 1.5); // Top edge
+      img.drawLine(myNewImage,
+          x1: xmax,
+          y1: ymin,
+          x2: xmax,
+          y2: ymax,
+          color: theColor,
+          thickness: 1.5);
+      img.drawLine(myNewImage,
+          x1: xmax,
+          y1: ymax,
+          x2: xmin,
+          y2: ymax,
+          color: theColor,
+          thickness: 1.5);
+      img.drawLine(myNewImage,
+          x1: xmin,
+          y1: ymax,
+          x2: xmin,
+          y2: ymin,
+          color: theColor,
+          thickness: 1.5);
+      return myNewImage;
+    } catch (e) {
+      print("train errro $e");
+      return myNewImage;
+    }
   }
 
-  ////////////////////////////////////////////// RETRY //////////////////////////////////////////////////
+  ////////////////////////// updating the detected objcts text //////////////////////////////
 
-  void retry() {
-    cameraAndLocationState = setUpEverything();
-    setState(() {});
-  }
-
-  /////////////////////////////////////////////// RESET ///////////////////////////////////////////////////
-
-  void reset() {
-    _cameraService.dispose();
-    //???cancel location stream
-    //???cancel channel stream and close connection
-    stateMsg = '__';
-    errorMsg = "";
-  }
-
-  ////////////////////////////////////////////// Animations ///////////////////////////////////////////////////
-
-  void setAllAnimations() {
-    //tire speed rotation_________________________________________________________
-    _rotationController = AnimationController(
-      vsync: this,
-      duration: Duration(
-          milliseconds: rotationSpeed), //the nbr o millisec each rotation takes
-    );
-    _rotationController.repeat(); // Makes the rotation continuous
-    //_____________________________________________________________________
-
-    //lightning connect light______________________________________________
-    _visibilityController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
-    //_______________________________________________________________________
-
-    //white circle audio size________________________________________________
-    _sizeController = AnimationController(
-      vsync: this,
-      duration:
-          const Duration(milliseconds: 400), // Duration for one full cycle
-    );
-
-    _sizeAnimation = Tween<double>(begin: 22.5, end: 30.0).animate(
-      CurvedAnimation(parent: _sizeController, curve: Curves.easeInOut),
-    );
-    //________________________________________________________________________
-
-    //typed alert animation___________________________________________________
-    _typingController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2700), // Adjust typing speed
-    );
-
-    _textAnimation = IntTween(begin: 0, end: alertMsg.length).animate(
-      CurvedAnimation(parent: _typingController, curve: Curves.easeInOut),
-    );
-    //________________________________________________________________________
-  }
-
-// Function to start typing animation
-  void _startTypingAnimation() {
-    setState(() {
-      _isTextVisible = true; // Show text when button is pressed
-    });
-    _textAnimation = IntTween(begin: 0, end: alertMsg.length).animate(
-      CurvedAnimation(parent: _typingController, curve: Curves.easeInOut),
-    );
-    _typingController.forward(); // Start typing animation
-  }
-
-  void _hideText() {
-    setState(() {
-      _isTextVisible = false; // Hide text
-    });
-    _typingController.reset(); // Reset typing animation
-  }
-
-  void _startAlert(String nearestAlertCategory) async {
-    print("train, yes $nearestAlertCategory");
-    AlertService.playAudio(nearestAlertCategory);
-    alertMsg = msgs[nearestAlertCategory]!;
-    print("train, $alertMsg");
-    // if (nearestAlertCategory == "pedestrian") {
-    //   alertIcon = Icons.directions_walk_rounded;
-    // } else if (nearestAlertCategory == "vehicle") {
-    //   alertIcon = Icons.directions_car_filled;
-    // } else if (nearestAlertCategory == "sign") {
-    //   alertIcon = Icons.traffic_outlined;
-    // }
-    _startTypingAnimation();
-    _sizeController.repeat(reverse: true);
-    await Future.delayed(const Duration(milliseconds: 2700));
-    _sizeController.stop();
-    _hideText();
-  }
-
-  String prepareobjctsText(int v, int p, int s) {
+  String updateDtcObjTxt(int v, int p, int s) {
     String txt = "";
     if (p != 0) {
       txt = "$p pedestrians\n";
@@ -864,7 +801,92 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return txt;
   }
 
-/////////////////////////////////////////////
+  /////////////////////////////////// LAUNCH THE ALERT ////////////////////////////////////////////
+
+  void launchAlert(List<List> totalAlerts) async {
+    //we get the alert with nearest object because it's the most dangerous one
+    String nearestAlertCategory = totalAlerts
+        .reduce((current, next) => current[1] < next[1] ? current : next)[0]
+        .toString()
+        .trim();
+
+    //if last alert was in last 4 secs we skip
+    if (DateTime.now().difference(lastAlrtDate).inSeconds > 4) {
+      lastAlrtDate = DateTime.now();
+
+      //playing audio :
+      AlertService.playAudio(nearestAlertCategory); //
+      alertMsg = msgs[nearestAlertCategory]!;
+
+      //alert typing animation
+      _startTypingAnimation();
+      _sizeController.repeat(reverse: true);
+      await Future.delayed(const Duration(milliseconds: 2700));
+      _sizeController.stop();
+      _hideText(); //
+    }
+  }
+
+  ////////////////////////////////////// UPDATE ROTATION SPEED ////////////////////////////////////////////
+
+  void _updateRotCntrl() {
+    int durationInMillis =
+        rotationSpeed = (20000 / (_speed + 1)).clamp(50, 3500).toInt();
+    _rotationController.duration = Duration(milliseconds: durationInMillis);
+    _rotationController.repeat();
+    print("ilyas : rotation updated / speed : $_speed");
+  }
+
+  ///////////////////////////////////////// Start Typing Animation /////////////////////////////////////////////////
+
+  void _startTypingAnimation() {
+    setState(() {
+      _isTextVisible = true; // Show text when button is pressed
+    });
+    _textAnimation = IntTween(begin: 0, end: alertMsg.length).animate(
+      CurvedAnimation(parent: _typingController, curve: Curves.easeInOut),
+    );
+    _typingController.forward(); // Start typing animation
+  }
+
+  /////////////////////////////////////// Hide Text /////////////////////////////////////////////////
+
+  void _hideText() {
+    setState(() {
+      _isTextVisible = false; // Hide text
+    });
+    _typingController.reset(); // Reset typing animation
+  }
+
+  /////////////////////////////////////// Launching Alert /////////////////////////////////////////////////
+
+//
+  void _startAlert(String nearestAlertCategory) async {
+    //playing audio :
+    AlertService.playAudio(nearestAlertCategory); //
+    alertMsg = msgs[nearestAlertCategory]!;
+    //typing animation :
+    _startTypingAnimation();
+    _sizeController.repeat(reverse: true);
+    await Future.delayed(const Duration(milliseconds: 2700));
+    _sizeController.stop();
+    _hideText(); //
+  }
+
+  ////////////////////////////////////////////// RETRY /////////////////////////////////////////////////
+
+  void retry() {
+    cameraAndLocationState = setUpEverything();
+    setState(() {});
+  }
+
+  /////////////////////////////////////////////// RESET /////////////////////////////////////////////////
+
+  void reset() {
+    _cameraService.dispose();
+    stateMsg = "";
+    errorMsg = "";
+  }
 }
 
 /////////////////////////////////////////////// end of class /////////////////////////////////////////////////////////////

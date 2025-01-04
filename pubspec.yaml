@@ -19,6 +19,9 @@ dependencies:
   http_parser: ^4.0.2
   web_socket_channel: ^2.4.0
   audioplayers: ^6.1.0
+  video_player: ^2.9.2
+  chewie: ^1.8.5
+  flutter_native_splash: ^2.4.4
 
 dev_dependencies:
   flutter_test:
@@ -34,4 +37,5 @@ flutter:
     - assets/audios/pedestrian.mp3
     - assets/audios/vehicle.mp3
     - assets/audios/sign.mp3
+    - assets/intro/rotate.mp4
   uses-material-design: true
